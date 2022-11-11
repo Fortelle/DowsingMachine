@@ -1,98 +1,92 @@
-﻿using System;
-using System.Collections;
-using System.Collections.Generic;
-using System.ComponentModel;
+﻿using System.Collections;
 using System.Data;
-using System.Drawing;
-using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
-using System.Windows.Forms;
 
-namespace PBT.DowsingMachine.UI
+namespace PBT.DowsingMachine.UI;
+
+public partial class TextViewer : Form
 {
-    public partial class TextViewer : Form
+    public TextViewer()
     {
-        public TextViewer()
+        InitializeComponent();
+    }
+
+    public TextViewer(object data) : this()
+    {
+        switch (data)
         {
-            InitializeComponent();
+            case byte[][] x:
+                Show(x);
+                break;
+            case byte[] x:
+                Show(x);
+                break;
+            default:
+                txtContent.Text = ToText(data);
+                break;
         }
+        txtHeader.Visible = txtHeader.TextLength > 0;
+        txtContent.SelectionStart = 0;
+        txtContent.SelectionLength = 0;
+    }
 
-        public TextViewer(object data) : this()
+    private static string ToHex(byte[] data)
+    {
+        return string.Join("  ", data.Chunk(16).Select(x => BitConverter.ToString(x).Replace("-", " "))); 
+    }
+
+    private static string ToText(object obj)
+    {
+        return obj switch
         {
-            switch (data)
-            {
-                case byte[][] x:
-                    Show(x);
-                    break;
-                case byte[] x:
-                    Show(x);
-                    break;
-                default:
-                    txtContent.Text = ToText(data);
-                    break;
-            }
-            txtHeader.Visible = txtHeader.TextLength > 0;
-        }
+            string x => x,
+            IEnumerable<string> x => string.Join("\n", x),
+            IEnumerable x => string.Join("\n", x.Cast<object>().Select(ToText)),
+            null => "(null)",
+            _ => obj.ToString()
+        };
+    }
 
-        private static string ToHex(byte[] data)
+    private void Show(byte[][] data)
+    {
+        var max = data.Max(x => x.Length);
+        var header = ToHex(Enumerable.Range(0, max).Select(x => (byte)x).ToArray());
+        txtHeader.Text = header;
+        txtHeader.SelectionStart = 0;
+        txtHeader.SelectionLength = 0;
+
+        var sb = new StringBuilder();
+        foreach (var r in data)
         {
-            return string.Join("  ", data.Chunk(16).Select(x => BitConverter.ToString(x).Replace("-", " "))); 
+            sb.AppendLine(ToHex(r));
         }
+        txtContent.Text = sb.ToString();
+    }
 
-        private static string ToText(object obj)
+    private void Show(byte[] data)
+    {
+        var header = string.Join(" ", Enumerable.Range(0, 16).Select(x => $"{x:X2}"));
+        txtHeader.Text = header;
+        txtHeader.SelectionStart = 0;
+        txtHeader.SelectionLength = 0;
+
+        var sb = new StringBuilder();
+        foreach (var r in data.Chunk(16))
         {
-            return obj switch
-            {
-                string x => x,
-                IEnumerable<string> x => string.Join("\n", x),
-                IEnumerable x => string.Join("\n", x.Cast<object>().Select(ToText)),
-                null => "(null)",
-                _ => obj.ToString()
-            };
+            sb.AppendLine(BitConverter.ToString(r).Replace("-", " "));
         }
+        txtContent.Text = sb.ToString();
+    }
 
-        private void Show(byte[][] data)
-        {
-            var max = data.Max(x => x.Length);
-            var header = ToHex(Enumerable.Range(0, max).Select(x => (byte)x).ToArray());
-            txtHeader.Text = header;
-            txtHeader.SelectionStart = 0;
-            txtHeader.SelectionLength = 0;
-
-            var sb = new StringBuilder();
-            foreach (var r in data)
-            {
-                sb.AppendLine(ToHex(r));
-            }
-            txtContent.Text = sb.ToString();
-        }
-
-        private void Show(byte[] data)
-        {
-            var header = string.Join(" ", Enumerable.Range(0, 16).Select(x => $"{x:X2}"));
-            txtHeader.Text = header;
-            txtHeader.SelectionStart = 0;
-            txtHeader.SelectionLength = 0;
-
-            var sb = new StringBuilder();
-            foreach (var r in data.Chunk(16))
-            {
-                sb.AppendLine(BitConverter.ToString(r).Replace("-", " "));
-            }
-            txtContent.Text = sb.ToString();
-        }
-
-        private void TextViewer_Load(object sender, EventArgs e)
-        {
-
-        }
-
-        public static void Show(object data)
-        {
-            using var frm = new TextViewer(data);
-            frm.ShowDialog();
-        }
+    private void TextViewer_Load(object sender, EventArgs e)
+    {
 
     }
+
+    public static void Show(object data)
+    {
+        using var frm = new TextViewer(data);
+        frm.ShowDialog();
+    }
+
 }

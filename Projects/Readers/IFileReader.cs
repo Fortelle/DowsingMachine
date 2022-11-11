@@ -1,32 +1,15 @@
-﻿namespace PBT.DowsingMachine.Projects
+﻿namespace PBT.DowsingMachine.Projects;
+
+public class IReadableCollection<T>
 {
-    public class IReadableCollection<T>
+    public T Read(string key)
     {
-        public T Read(string key)
-        {
-            throw new NotImplementedException();
-        }
-
-        public T Read(int index)
-        {
-            throw new NotImplementedException();
-        }
+        throw new NotImplementedException();
     }
 
-    public interface IFileReader
+    public T Read(int index)
     {
-        public void Load(string path);
-        public void Load(byte[] data);
+        throw new NotImplementedException();
     }
-
-    public interface IFileReader<T>
-    {
-        public T Get();
-    }
-
-    public interface IExtractable
-    {
-        public void Extract(string path);
-    }
-
 }
+

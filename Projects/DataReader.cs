@@ -1,44 +1,36 @@
-﻿using System;
-using System.IO;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿namespace PBT.DowsingMachine.Projects;
 
-namespace PBT.DowsingMachine.Projects
+public abstract class DataReader<TOut> : DataReader<TOut, TOut>
 {
-    public abstract class DataReader<TOut> : IDataReader
+
+    protected DataReader(string path) : base(path)
     {
-        public string Name { get; set; }
-        public string RelatedPath { get; set; }
-        public virtual DataProject Project { get; set; }
-        public bool UseCache { get; set; }
-
-        protected abstract TOut Read();
-
-        public virtual object[] Open() => null;
-        public virtual object GetContent() => Read();
-
-        protected DataReader (string path)
-        {
-            RelatedPath = path;
-        }
-
-        protected object[] GetCache()
-        {
-            if(!UseCache)
-            {
-                var cache = Open();
-                return cache;
-            }
-
-            if (!Project.Caches.ContainsKey(Name))
-            {
-                var cache = Open();
-                Project.Caches.Add(Name, cache);
-            }
-
-            return Project.Caches[Name];
-        }
     }
 
+    protected override TOut Read(TOut cache) => cache;
+}
+
+public abstract class DataReader<TCache, TOut> : IDataReader
+{
+    public string Name { get; set; }
+    public string RelatedPath { get; set; }
+    public virtual DataProject Project { get; set; }
+
+    protected DataReader(string path)
+    {
+        RelatedPath = path;
+    }
+
+    protected abstract TCache Open();
+
+    protected abstract TOut Read(TCache cache);
+
+    //protected virtual void Release(TCache cache)
+    //{
+    //    if (cache is IDisposable dis) dis.Dispose();
+    //}
+
+    object IDataReader.Open() => Open();
+    object IDataReader.Read(object cache) => Read((TCache)cache);
+    //void IDataReader.Release(object cache) => Release((TCache)cache);
 }

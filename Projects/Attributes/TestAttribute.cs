@@ -1,12 +1,16 @@
-﻿namespace PBT.DowsingMachine.Projects
+﻿namespace PBT.DowsingMachine.Projects;
+
+[AttributeUsage(AttributeTargets.Method)]
+public class TestAttribute : Attribute
 {
-    [AttributeUsage(AttributeTargets.Method)]
-    public class TestAttribute : Attribute
+    public object[] Arguments { get; set; }
+
+    public TestAttribute()
     {
-
-        public TestAttribute()
-        {
-        }
-
+    }
+    
+    public TestAttribute(object[] args)
+    {
+        Arguments = args;
     }
 }

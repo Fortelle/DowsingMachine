@@ -1,40 +1,18 @@
-﻿namespace PBT.DowsingMachine.Projects
+﻿namespace PBT.DowsingMachine.Projects;
+
+// for gb - gba
+public class SingleFileProject : DataProject
 {
-    public class SingleFileProject : DataProject
+    public SingleFileProject(string name, string filename) : base(name, filename)
     {
-        public SingleFileProject(string name, string filename) : base(name, filename)
+    }
+
+    protected class SingleReader : StreamBinaryReader
+    {
+        public SingleReader(int offset) : base("", offset)
         {
+            RelatedPath = Project.Root;
         }
-
-        protected class SingleReader : DataReader<BinaryReader>
-        {
-            public int Offset { get; set; }
-
-            public SingleReader(int offset) : base(null)
-            {
-                UseCache = true;
-                Offset = offset;
-            }
-
-            public override object[] Open()
-            {
-                var fs = File.OpenRead(Project.Root);
-                var br = new BinaryReader(fs);
-                return new object[] {
-                    fs,
-                    br,
-                };
-            }
-
-            protected override BinaryReader Read()
-            {
-                var cache = GetCache();
-                var reader = (BinaryReader)cache[1];
-                reader.BaseStream.Seek(Offset, SeekOrigin.Begin);
-                return reader;
-            }
-        }
-
     }
 
 }

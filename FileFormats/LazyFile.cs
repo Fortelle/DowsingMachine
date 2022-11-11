@@ -1,29 +1,28 @@
-﻿namespace PBT.DowsingMachine.FileFormats
+﻿namespace PBT.DowsingMachine.FileFormats;
+
+public abstract class LazyFile: IDisposable
 {
-    public abstract class LazyFile: IDisposable
+    protected FileStream Stream { get; init; }
+    protected BinaryReader Reader { get; init; }
+
+    protected LazyFile(string path)
     {
-        protected FileStream Stream { get; init; }
-        protected BinaryReader Reader { get; init; }
+        Stream = File.OpenRead(path);
+        Reader = new BinaryReader(Stream);
+    }
 
-        protected LazyFile(string path)
-        {
-            Stream = File.OpenRead(path);
-            Reader = new BinaryReader(Stream);
-        }
+    public void Dispose()
+    {
+        Dispose(true);
+        GC.SuppressFinalize(this);
+    }
 
-        public void Dispose()
+    protected virtual void Dispose(bool disposing)
+    {
+        if (disposing)
         {
-            Dispose(true);
-            GC.SuppressFinalize(this);
-        }
-
-        protected virtual void Dispose(bool disposing)
-        {
-            if (disposing)
-            {
-                Reader?.Close();
-                Stream?.Close();
-            }
+            Reader?.Close();
+            Stream?.Close();
         }
     }
 }

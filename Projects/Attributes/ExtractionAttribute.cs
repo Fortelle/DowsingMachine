@@ -1,12 +1,11 @@
-﻿namespace PBT.DowsingMachine.Projects
+﻿namespace PBT.DowsingMachine.Projects;
+
+[AttributeUsage(AttributeTargets.Method)]
+public class ExtractionAttribute : Attribute
 {
-    [AttributeUsage(AttributeTargets.Method)]
-    public class ExtractionAttribute : Attribute
+
+    public ExtractionAttribute()
     {
-
-        public ExtractionAttribute()
-        {
-        }
-
     }
+
 }

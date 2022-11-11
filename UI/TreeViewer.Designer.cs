@@ -39,6 +39,9 @@ namespace PBT.DowsingMachine.UI
             this.treeView1.Name = "treeView1";
             this.treeView1.Size = new System.Drawing.Size(914, 529);
             this.treeView1.TabIndex = 0;
+            this.treeView1.AfterSelect += new System.Windows.Forms.TreeViewEventHandler(this.treeView1_AfterSelect);
+            this.treeView1.NodeMouseClick += new System.Windows.Forms.TreeNodeMouseClickEventHandler(this.treeView1_NodeMouseClick);
+            this.treeView1.NodeMouseDoubleClick += new System.Windows.Forms.TreeNodeMouseClickEventHandler(this.treeView1_NodeMouseDoubleClick);
             // 
             // TreeViewer
             // 
@@ -48,6 +51,7 @@ namespace PBT.DowsingMachine.UI
             this.Controls.Add(this.treeView1);
             this.Margin = new System.Windows.Forms.Padding(3, 4, 3, 4);
             this.Name = "TreeViewer";
+            this.StartPosition = System.Windows.Forms.FormStartPosition.CenterScreen;
             this.Text = "TreeViewer";
             this.Load += new System.EventHandler(this.DataViewer_Load);
             this.ResumeLayout(false);
