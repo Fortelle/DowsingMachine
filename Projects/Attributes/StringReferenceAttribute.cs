@@ -1,6 +1,6 @@
 ﻿namespace PBT.DowsingMachine.Projects;
 
-[AttributeUsage(AttributeTargets.Property)]
+[AttributeUsage(AttributeTargets.Property | AttributeTargets.Field)]
 public class StringReferenceAttribute : Attribute
 {
     public object[] Arguments { get; set; }

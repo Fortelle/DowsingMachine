@@ -192,15 +192,13 @@ public partial class GridViewer : Form
             {
                 var value = prop.GetValue(item);
                 var text = ToLine(value);
-
                 if(GetString != null)
                 {
                     var sr = prop.GetCustomAttribute<StringReferenceAttribute>();
                     if (sr != null)
                     {
                         var args = sr.Arguments.Append(value).ToArray();
-                        var text2 = GetString(args);
-                        text += " (" + text2 + ")";
+                        text += " (" + GetString(args) + ")";
                     }
                 }
 
@@ -210,6 +208,16 @@ public partial class GridViewer : Form
             {
                 var value = field.GetValue(item);
                 var text = ToLine(value);
+                if (GetString != null)
+                {
+                    var sr = field.GetCustomAttribute<StringReferenceAttribute>();
+                    if (sr != null)
+                    {
+                        var args = sr.Arguments.Append(value).ToArray();
+                        text += " (" + GetString(args) + ")";
+                    }
+                }
+
                 dataGridView1.Rows[row].Cells[field.Name].Value = text;
             }
             i++;
