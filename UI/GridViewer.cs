@@ -351,6 +351,15 @@ public partial class GridViewer : Form
         if (saveFileDialog1.ShowDialog() == DialogResult.OK)
         {
             var data = new List<object[]>();
+            {
+                var x = new List<object>();
+                foreach (DataGridViewColumn col in dataGridView1.Columns)
+                {
+                    x.Add(col.HeaderText);
+                }
+                data.Add(x.ToArray());
+            }
+
             foreach(DataGridViewRow row in dataGridView1.Rows)
             {
                 var x = new List<object>();

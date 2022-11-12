@@ -14,11 +14,13 @@ public partial class BinaryFinder : Form
 
     private void button1_Click(object sender, EventArgs e)
     {
-        var files = Directory.GetFiles(@"E:\Pokemon\Resources\Unpacked\NS\Legend\romfs\", "*bin", SearchOption.AllDirectories);
+        throw new NotImplementedException();
+
+        var folder = folderBrowserDialog1.SelectedPath;
+        if (!Directory.Exists(folder)) return;
+        var files = Directory.GetFiles(folder, "*", SearchOption.AllDirectories);
         
-        var bf = new BmhFinder(new byte[] {
-            0x1F, 00, 0x28, 00, 0x3C, 00, 0x70, 00
-        });
+        var bf = new BmhFinder(new byte[] {});
 
         var sb = new StringBuilder();
         var job = files.Select(x =>
@@ -42,4 +44,11 @@ public partial class BinaryFinder : Form
     {
 
     }
+
+    private void button2_Click(object sender, EventArgs e)
+    {
+        if (folderBrowserDialog1.ShowDialog() != DialogResult.OK) return;
+        txtFolder.Text = folderBrowserDialog1.SelectedPath;
+    }
+
 }

@@ -51,14 +51,14 @@ public class ExtendableProject : DataProject
         var baseFiles = new List<FileEntry>();
         var patchFiles = new List<FileEntry>();
 
-        var basePath = Path.Combine(Root, relativePath);
-        var patchPath = Path.Combine(PatchFolder, relativePath);
-        if (!string.IsNullOrEmpty(basePath) && readMode != PatchReadMode.OnlyPatch)
+        if (!string.IsNullOrEmpty(Root) && readMode != PatchReadMode.OnlyPatch)
         {
+            var basePath = Path.Combine(Root, relativePath);
             baseFiles.AddRange(DirectoryUtil.GetFiles(basePath, searchPattern));
         }
         if (!string.IsNullOrEmpty(PatchFolder) && readMode != PatchReadMode.OnlyBase)
         {
+            var patchPath = Path.Combine(PatchFolder, relativePath);
             patchFiles.AddRange(DirectoryUtil.GetFiles(patchPath, searchPattern));
         }
 
@@ -78,14 +78,28 @@ public class ExtendableProject : DataProject
         return unionFiles.Values.ToArray();
     }
 
-    public record PairedFilename(string? BaseFilename, string? PatchFilename);
+    public class PairedFilename
+    {
+        public string? BaseFilename { get; set; }
+        public string? PatchFilename { get; set; }
+
+        public PairedFilename(string? baseFilename, string? patchFilename)
+        {
+            BaseFilename = baseFilename;
+            PatchFilename = patchFilename;
+        }
+
+        public string? Newer => PatchFilename ?? BaseFilename;
+        public string? Older => BaseFilename ?? PatchFilename;
+    }
 
     public PairedFilename GetPairedFile(string relativePath)
     {
         relativePath = relativePath.TrimStart('/').TrimStart('\\');
 
-        var basePath = Path.Combine(Root, relativePath);
-        var patchPath = Path.Combine(PatchFolder, relativePath);
+        var basePath = string.IsNullOrEmpty(Root) ? "" : Path.Combine(Root, relativePath);
+        var patchPath = string.IsNullOrEmpty(PatchFolder) ? "" : Path.Combine(PatchFolder, relativePath);
+
         var pf = new PairedFilename(
             ReadMode != PatchReadMode.OnlyPatch && File.Exists(basePath) ? basePath : null,
             ReadMode != PatchReadMode.OnlyBase && File.Exists(patchPath) ? patchPath : null
@@ -97,13 +111,13 @@ public class ExtendableProject : DataProject
     {
         relativePath = relativePath.TrimStart('/').TrimStart('\\');
 
-        var basePath = Path.Combine(Root, relativePath);
-        var patchPath = Path.Combine(PatchFolder, relativePath);
+        var basePath = string.IsNullOrEmpty(Root) ? "" : Path.Combine(Root, relativePath);
+        var patchPath = string.IsNullOrEmpty(PatchFolder) ? "" : Path.Combine(PatchFolder, relativePath);
 
-        var baseFiles = ReadMode == PatchReadMode.OnlyPatch
+        var baseFiles = (ReadMode == PatchReadMode.OnlyPatch || !Directory.Exists(basePath))
             ? Array.Empty<string>()
             : Directory.GetFiles(basePath, searchPattern);
-        var patchFiles = ReadMode == PatchReadMode.OnlyBase
+        var patchFiles = (ReadMode == PatchReadMode.OnlyBase || !Directory.Exists(patchPath))
             ? Array.Empty<string>()
             : Directory.GetFiles(patchPath, searchPattern);
 

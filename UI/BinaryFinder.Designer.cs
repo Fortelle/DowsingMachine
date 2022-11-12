@@ -42,6 +42,9 @@
             this.radioButton2 = new System.Windows.Forms.RadioButton();
             this.radioButton1 = new System.Windows.Forms.RadioButton();
             this.button1 = new System.Windows.Forms.Button();
+            this.txtFolder = new System.Windows.Forms.TextBox();
+            this.button2 = new System.Windows.Forms.Button();
+            this.folderBrowserDialog1 = new System.Windows.Forms.FolderBrowserDialog();
             this.groupBox1.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.nudMaxStep)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.nudMinStep)).BeginInit();
@@ -202,11 +205,31 @@
             this.button1.UseVisualStyleBackColor = true;
             this.button1.Click += new System.EventHandler(this.button1_Click);
             // 
+            // txtFolder
+            // 
+            this.txtFolder.Location = new System.Drawing.Point(12, 324);
+            this.txtFolder.Name = "txtFolder";
+            this.txtFolder.ReadOnly = true;
+            this.txtFolder.Size = new System.Drawing.Size(559, 25);
+            this.txtFolder.TabIndex = 7;
+            // 
+            // button2
+            // 
+            this.button2.Location = new System.Drawing.Point(577, 326);
+            this.button2.Name = "button2";
+            this.button2.Size = new System.Drawing.Size(38, 23);
+            this.button2.TabIndex = 8;
+            this.button2.Text = "...";
+            this.button2.UseVisualStyleBackColor = true;
+            this.button2.Click += new System.EventHandler(this.button2_Click);
+            // 
             // BinaryFinder
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(8F, 20F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(627, 444);
+            this.Controls.Add(this.button2);
+            this.Controls.Add(this.txtFolder);
             this.Controls.Add(this.button1);
             this.Controls.Add(this.groupBox2);
             this.Controls.Add(this.groupBox1);
@@ -220,6 +243,7 @@
             this.groupBox2.ResumeLayout(false);
             this.groupBox2.PerformLayout();
             this.ResumeLayout(false);
+            this.PerformLayout();
 
         }
 
@@ -239,5 +263,8 @@
         private RadioButton radioButton2;
         private RadioButton radioButton1;
         private Button button1;
+        private TextBox txtFolder;
+        private Button button2;
+        private FolderBrowserDialog folderBrowserDialog1;
     }
 }
