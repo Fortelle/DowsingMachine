@@ -33,8 +33,11 @@ public class DataProject
 
     public DataReference AddReference(DataReference reference)
     {
-        reference.Reader.Name = Name;
-        reference.Reader.Project = this;
+        if(reference.Reader != null)
+        {
+            reference.Reader.Name = Name;
+            reference.Reader.Project = this;
+        }
         References.Add(reference);
         return reference;
     }
@@ -42,6 +45,12 @@ public class DataProject
     protected DataReference AddReference(string name, IDataReader reader)
     {
         var reference = new DataReference(name, reader);
+        return AddReference(reference);
+    }
+
+    protected DataReference AddReference<T>(string name, Func<T> parser)
+    {
+        var reference = new DataReference(name, null, parser);
         return AddReference(reference);
     }
 
@@ -77,17 +86,17 @@ public class DataProject
 
     protected object GetData(DataReference reference, int step)
     {
-        object data;
+        object? data;
 
         if (!UseCache)
         {
-            data = reference.Reader.Open();
+            reference.TryOpen(out data);
         }
         else
         {
             if (!Caches.ContainsKey(reference.Name))
             {
-                data = reference.Reader.Open();
+                reference.TryOpen(out data);
                 Caches.Add(reference.Name, data);
             }
             else
@@ -101,7 +110,7 @@ public class DataProject
         {
             foreach (var del in reference.Parsers)
             {
-                var newData = del.DynamicInvoke(data);
+                var newData = data is null ? del.DynamicInvoke() : del.DynamicInvoke(data);
                 if(data is IDisposable dis) { dis.Dispose(); }
                 data = newData;
             }

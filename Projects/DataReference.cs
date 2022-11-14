@@ -27,4 +27,18 @@ public class DataReference
     {
         return name.Replace("_", "").ToLower();
     }
+
+    public bool TryOpen(out object? data)
+    {
+        if (Reader is null)
+        {
+            data = null;
+            return false;
+        }
+        else
+        {
+            data = Reader.Open();
+            return true;
+        }
+    }
 }
