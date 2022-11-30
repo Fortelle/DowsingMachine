@@ -7,6 +7,6 @@ public interface IDataReader
     public DataProject Project { get; set; }
 
     public object Open();
-    object Read(object _);
+    object Read(object cache);
     //public void Release(object cache);
 }

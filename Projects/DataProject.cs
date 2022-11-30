@@ -84,11 +84,23 @@ public class DataProject
         return References.First(x => x.Name == name);
     }
 
-    protected object GetData(DataReference reference, int step)
+    protected object GetData(DataReference reference, CacheMode cache, int step)
     {
         object? data;
 
-        if (!UseCache)
+        if(cache == CacheMode.CacheFinal && Caches.ContainsKey(reference.Name))
+        {
+            return Caches[reference.Name];
+        }
+
+        var cacheSource = cache switch
+        {
+            CacheMode.None => UseCache,
+            CacheMode.CacheSource => true,
+            _ => false,
+        };
+
+        if (!cacheSource)
         {
             reference.TryOpen(out data);
         }
@@ -105,6 +117,11 @@ public class DataProject
             }
         }
 
+        if (reference.Reader != null)
+        {
+            data = reference.Reader.Read(data);
+        }
+
         if (step == -1) step = reference.Parsers.Length;
         if (step > 0)
         {
@@ -116,25 +133,35 @@ public class DataProject
             }
         }
 
+        if (cache == CacheMode.CacheFinal)
+        {
+            Caches.Add(reference.Name, data);
+        }
+
         OnDataGet?.Invoke(data);
 
         return data;
     }
 
-    public object GetData(string refName, int step = -1)
+    public object GetData(string refName, CacheMode cache = CacheMode.None, int step = -1)
     {
         var reference = GetReference(refName);
-        return GetData(reference, step);
+        return GetData(reference, cache, step);
     }
 
     public T GetData<T>(string refName, int step)
     {
-        return (T)GetData(refName, step);
+        return (T)GetData(refName, CacheMode.None, step);
     }
 
     public T GetData<T>(string refName)
     {
-        return (T)GetData(refName, -1);
+        return (T)GetData(refName, CacheMode.None, - 1);
+    }
+
+    public T GetData<T>(string refName, CacheMode cache)
+    {
+        return (T)GetData(refName, cache, - 1);
     }
 
     public virtual void BeginWork()
