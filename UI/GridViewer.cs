@@ -5,6 +5,7 @@ using System.Data;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Text.Json.Nodes;
+using static System.Net.Mime.MediaTypeNames;
 
 namespace PBT.DowsingMachine.UI;
 
@@ -183,11 +184,25 @@ public partial class GridViewer : Form
             dataGridView1.Columns[col].SortMode = DataGridViewColumnSortMode.NotSortable;
         }
 
+        var entryStringRef = type.GetCustomAttribute<StringReferenceAttribute>();
+
         var i = 0;
         foreach (var item in list)
         {
             var row = dataGridView1.Rows.Add();
-            dataGridView1.Rows[row].HeaderCell.Value = $"{i}";
+
+            if (GetString != null && entryStringRef != null)
+            {
+                var args = entryStringRef.Arguments.Append(i).ToArray();
+                var text = GetString(args);
+                dataGridView1.Rows[row].HeaderCell.Value = $"{i} ({text})";
+            }
+            else
+            {
+                dataGridView1.Rows[row].HeaderCell.Value = $"{i}";
+            }
+
+
             foreach (var prop in properties)
             {
                 var value = prop.GetValue(item);
