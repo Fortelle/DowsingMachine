@@ -8,7 +8,7 @@ public class CollectionReader<T> : DataReader<T> where T : IArchive, new()
 
     protected override T Open()
     {
-        var path = Project.GetPath(RelatedPath);
+        var path = Project.As<IFolderProject>().GetPath(RelatedPath);
         var file = new T();
         file.Open(path);
         return file;

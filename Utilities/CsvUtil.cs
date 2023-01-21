@@ -3,7 +3,7 @@ using CsvHelper.Configuration;
 using System.Globalization;
 using System.Text;
 
-namespace PBT.DowsingMachine.Data;
+namespace PBT.DowsingMachine.Utilities;
 
 public static class CsvUtil
 {
@@ -27,10 +27,10 @@ public static class CsvUtil
             Delimiter = "\t",
         };
         var cw = new CsvWriter(sw, config);
-        
-        foreach(var row in obj)
+
+        foreach (var row in obj)
         {
-            foreach(var cell in row)
+            foreach (var cell in row)
             {
                 cw.WriteField(cell);
             }

@@ -17,7 +17,7 @@ public class MatrixReader : DataReader<byte[][]>
 
     protected override byte[][] Open()
     {
-        var path = Project.GetPath(RelatedPath);
+        var path = Project.As<IFolderProject>().GetPath(RelatedPath);
         var bytes = File.ReadAllBytes(path);
         var pack = new MatrixPack(bytes, ItemSize, ItemCount, Offset);
         return pack.Entries.ToArray();

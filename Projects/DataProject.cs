@@ -1,34 +1,40 @@
 ﻿using PBT.DowsingMachine.Data;
 using PBT.DowsingMachine.Structures;
 using PBT.DowsingMachine.Utilities;
+using System.ComponentModel;
+using System.Drawing.Design;
 using System.Reflection;
+using System.Windows.Forms.Design;
 
 namespace PBT.DowsingMachine.Projects;
 
 public class DataProject
 {
+    [Option]
     public string Name { get; set; }
-    public string Root { get; set; }
-    public string OutputPath { get; set; }
 
-    public List<DataReference> References { get; set; }
-    public Dictionary<string, object> Caches { get; set; }
+    [Option]
+    [Editor(typeof(FolderNameEditor), typeof(UITypeEditor))] 
+    public string OutputFolder { get; set; }
+
+    [Option]
+    [ReadOnly(true)]
+    public string Id { get; set; }
+
+    public List<DataReference> References { get; } = new();
+    public Dictionary<string, object> Caches { get; } = new();
     public bool UseCache { get; set; }
-
-    public virtual string Key => Name;
 
     public event Action<object> OnDataGet;
 
     public DataProject()
     {
-        References = new();
-        Caches = new();
+
     }
 
-    public DataProject(string name, string path) : this()
+    public T As<T>() where T : class
     {
-        Name = name;
-        Root = path;
+        return (T)(object)this;
     }
 
     public DataReference AddReference(DataReference reference)
@@ -209,33 +215,33 @@ public class DataProject
         };
     }
 
-    public virtual string GetPath(string relatedPath)
-    {
-        relatedPath = relatedPath.TrimStart('/').TrimStart('\\');
-        var path = Path.Combine(Root, relatedPath);
-        return path;
-    }
+    //public virtual string GetPath(string relatedPath)
+    //{
+    //    relatedPath = relatedPath.TrimStart('/').TrimStart('\\');
+    //    var path = Path.Combine(Root, relatedPath);
+    //    return path;
+    //}
 
-    public virtual FileEntry[] GetFiles(string relativePath)
-    {
-        relativePath = relativePath.TrimStart('/').TrimStart('\\');
-        var path = Path.Combine(Root, relativePath);
-        var files = DirectoryUtil.GetFiles(path, "*");
-        return files;
-    }
+    //public virtual FileEntry[] GetFiles(string relativePath)
+    //{
+    //    relativePath = relativePath.TrimStart('/').TrimStart('\\');
+    //    var path = Path.Combine(Root, relativePath);
+    //    var files = DirectoryUtil.GetFiles(path, "*");
+    //    return files;
+    //}
 
-    public virtual FileEntry[] GetFiles(string relativePath, string searchPattern)
-    {
-        relativePath = relativePath.TrimStart('/').TrimStart('\\');
-        var path = Path.Combine(Root, relativePath);
-        var files = DirectoryUtil.GetFiles(path, searchPattern);
-        return files;
-    }
+    //public virtual FileEntry[] GetFiles(string relativePath, string searchPattern)
+    //{
+    //    relativePath = relativePath.TrimStart('/').TrimStart('\\');
+    //    var path = Path.Combine(Root, relativePath);
+    //    var files = DirectoryUtil.GetFiles(path, searchPattern);
+    //    return files;
+    //}
 
     public string GetOutputFile(string relativePath)
     {
         relativePath = relativePath.TrimStart('/').TrimStart('\\');
-        var path = Path.Combine(OutputPath, relativePath);
+        var path = Path.Combine(OutputFolder, relativePath);
         Directory.CreateDirectory(Path.GetDirectoryName(path));
         return path;
     }
@@ -267,11 +273,32 @@ public class DataProject
 
     public static T[] ParseEnumerable<T>(IEnumerable<byte[]> source, Func<BinaryReader, T> predicate)
     {
-        return source.Select(x=> {
+        return source.Select(x =>
+        {
             using var ms = new MemoryStream(x);
             using var br = new BinaryReader(ms);
             var data = predicate.Invoke(br);
             return data;
         }).ToArray();
     }
+
+    public virtual bool CheckValidity(out string? error)
+    {
+        error = "";
+        return true;
+    }
+
+    public virtual void Configure()
+    {
+    }
+
+    [Action("Open output folder")]
+    public void OpenOutputFolder()
+    {
+        if (Directory.Exists(OutputFolder))
+        {
+            ProcessUtil.OpenFolder(OutputFolder);
+        }
+    }
+
 }

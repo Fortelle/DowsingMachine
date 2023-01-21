@@ -10,7 +10,7 @@ public class ByteReader : DataReader<byte[]>
 
     protected override byte[] Open()
     {
-        var path = Project.GetPath(RelatedPath);
+        var path = Project.As<IFolderProject>().GetPath(RelatedPath);
         var data = File.ReadAllBytes(path);
         return data;
     }

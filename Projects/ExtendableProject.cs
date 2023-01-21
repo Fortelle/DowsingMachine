@@ -1,29 +1,32 @@
 ﻿using PBT.DowsingMachine.Data;
 using PBT.DowsingMachine.Structures;
 using PBT.DowsingMachine.Utilities;
+using System.ComponentModel;
+using System.Diagnostics;
+using System.Drawing.Design;
+using System.Windows.Forms.Design;
 
 namespace PBT.DowsingMachine.Projects;
 
-public class ExtendableProject : DataProject
+public abstract class ExtendableProject : DataProject, IFolderProject
 {
+    [Option]
+    [Editor(typeof(FolderNameEditor), typeof(UITypeEditor))]
+    public string OriginalFolder { get; set; }
+
+    [Option]
+    [Editor(typeof(FolderNameEditor), typeof(UITypeEditor))]
     public string? PatchFolder { get; set; }
+
+    [Option]
     public Version Version { get; set; }
+
+
     public bool HasPatch => !string.IsNullOrEmpty(PatchFolder);
-    public override string Key => string.Format("{0}_{1}", Name, Version);
 
     public PatchReadMode ReadMode { get; set; }
 
-    public ExtendableProject(string name, string version, string baseFolder) : base(name, baseFolder)
-    {
-        Version = new Version(version);
-    }
-
-    public ExtendableProject(string name, string version, string baseFolder, string? patchFolder) : this(name, version, baseFolder)
-    {
-        PatchFolder = patchFolder;
-    }
-
-    public override string GetPath(string relativePath)
+    public string GetPath(string relativePath)
     {
         relativePath = relativePath.TrimStart('/').TrimStart('\\');
 
@@ -35,11 +38,11 @@ public class ExtendableProject : DataProject
                 return patchPath;
             }
         }
-        var basePath = Path.Combine(Root, relativePath);
+        var basePath = Path.Combine(OriginalFolder, relativePath);
         return basePath;
     }
 
-    public override FileEntry[] GetFiles(string relativePath, string searchPattern)
+    public FileEntry[] GetFiles(string relativePath, string searchPattern)
     {
         return GetFiles(relativePath, searchPattern, ReadMode);
     }
@@ -51,9 +54,9 @@ public class ExtendableProject : DataProject
         var baseFiles = new List<FileEntry>();
         var patchFiles = new List<FileEntry>();
 
-        if (!string.IsNullOrEmpty(Root) && readMode != PatchReadMode.OnlyPatch)
+        if (!string.IsNullOrEmpty(OriginalFolder) && readMode != PatchReadMode.OnlyPatch)
         {
-            var basePath = Path.Combine(Root, relativePath);
+            var basePath = Path.Combine(OriginalFolder, relativePath);
             baseFiles.AddRange(DirectoryUtil.GetFiles(basePath, searchPattern));
         }
         if (!string.IsNullOrEmpty(PatchFolder) && readMode != PatchReadMode.OnlyBase)
@@ -97,7 +100,7 @@ public class ExtendableProject : DataProject
     {
         relativePath = relativePath.TrimStart('/').TrimStart('\\');
 
-        var basePath = string.IsNullOrEmpty(Root) ? "" : Path.Combine(Root, relativePath);
+        var basePath = string.IsNullOrEmpty(OriginalFolder) ? "" : Path.Combine(OriginalFolder, relativePath);
         var patchPath = string.IsNullOrEmpty(PatchFolder) ? "" : Path.Combine(PatchFolder, relativePath);
 
         var pf = new PairedFilename(
@@ -111,7 +114,7 @@ public class ExtendableProject : DataProject
     {
         relativePath = relativePath.TrimStart('/').TrimStart('\\');
 
-        var basePath = string.IsNullOrEmpty(Root) ? "" : Path.Combine(Root, relativePath);
+        var basePath = string.IsNullOrEmpty(OriginalFolder) ? "" : Path.Combine(OriginalFolder, relativePath);
         var patchPath = string.IsNullOrEmpty(PatchFolder) ? "" : Path.Combine(PatchFolder, relativePath);
 
         var baseFiles = (ReadMode == PatchReadMode.OnlyPatch || !Directory.Exists(basePath))
@@ -159,4 +162,40 @@ public class ExtendableProject : DataProject
         list.ForEach(x => x.Index = 0);
         return list.ToArray();
     }
+
+    public override bool CheckValidity(out string error)
+    {
+        if (string.IsNullOrEmpty(OriginalFolder?.Trim()))
+        {
+            error = $"Property \"{nameof(OriginalFolder)}\" is not set.";
+            return false;
+        }
+
+        if (!Directory.Exists(OriginalFolder))
+        {
+            error = $"Original directory \"{OriginalFolder}\" not exists.";
+            return false;
+        }
+
+        return base.CheckValidity(out error);
+    }
+
+    [Action("Open original folder")]
+    public void OpenOriginalFolder()
+    {
+        if (Directory.Exists(OriginalFolder))
+        {
+            ProcessUtil.OpenFolder(OriginalFolder);
+        }
+    }
+
+    [Action("Open patch folder")]
+    public void OpenPatchFolder()
+    {
+        if (Directory.Exists(PatchFolder))
+        {
+            ProcessUtil.OpenFolder(PatchFolder);
+        }
+    }
+
 }

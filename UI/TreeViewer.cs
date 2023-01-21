@@ -1,4 +1,5 @@
-﻿using System.Collections;
+﻿using PBT.DowsingMachine.Utilities;
+using System.Collections;
 using System.Reflection;
 
 namespace PBT.DowsingMachine.UI;
@@ -110,7 +111,7 @@ public partial class TreeViewer : Form
             }
             else if (e.Node.Tag is not null)
             {
-                var json = Data.JsonUtil.Serialize(e.Node.Tag);
+                var json = JsonUtil.Serialize(e.Node.Tag);
                 using var frm = new TextViewer(json);
                 frm.ShowDialog();
             }

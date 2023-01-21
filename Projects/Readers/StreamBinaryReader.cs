@@ -17,7 +17,7 @@ public class StreamBinaryReader : DataReader<StreamBinaryReader.Cache, BinaryRea
 
     protected override Cache Open()
     {
-        var path = Project.GetPath(RelatedPath);
+        var path = Project.As<IFolderProject>().GetPath(RelatedPath);
         var ms = File.OpenRead(path);
         var br = new BinaryReader(ms);
         return new Cache(ms, br);

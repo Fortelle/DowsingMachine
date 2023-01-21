@@ -1,6 +1,6 @@
 ﻿using System.Xml.Serialization;
 
-namespace PBT.DowsingMachine.Data;
+namespace PBT.DowsingMachine.Utilities;
 
 public static class XmlUtil
 {

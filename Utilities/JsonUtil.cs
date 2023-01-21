@@ -4,7 +4,7 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
 
-namespace PBT.DowsingMachine.Data;
+namespace PBT.DowsingMachine.Utilities;
 
 public static class JsonUtil
 {
@@ -32,7 +32,7 @@ public static class JsonUtil
             IgnoreReadOnlyProperties = opt?.IgnoreReadOnlyProperties ?? defOpt.IgnoreReadOnlyProperties,
             IncludeFields = opt?.IncludeFields ?? defOpt.IncludeFields,
             Encoder = opt?.Encoder ?? defOpt.Encoder,
-            
+
         };
         if (opt?.NamePolicy == JsonNamePolicy.Lower)
         {
@@ -58,9 +58,8 @@ public static class JsonUtil
     public static T Deserialize<T>(string path)
     {
         var text = File.ReadAllText(path);
-        return Deserialize<T>(text);
+        return JsonSerializer.Deserialize<T>(text);
     }
-
 
     public class ObjectToArrayConverter<T> : JsonConverter<T> where T : new()
     {

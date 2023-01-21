@@ -11,7 +11,7 @@ public class MultiFileReader<T> : DataReader<IEnumerable<T>>
 
     protected override IEnumerable<T> Open()
     {
-        var path = Project.GetPath(RelatedPath);
+        var path = Project.As<IFolderProject>().GetPath(RelatedPath);
         var files = Directory.GetFiles(path, Pattern, SearchOption.AllDirectories);
 
         switch (typeof(T))

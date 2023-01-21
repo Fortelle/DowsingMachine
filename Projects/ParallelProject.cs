@@ -1,24 +1,19 @@
 ﻿using PBT.DowsingMachine.Structures;
 using PBT.DowsingMachine.Utilities;
+using System.ComponentModel;
+using System.Drawing.Design;
+using System.Windows.Forms.Design;
 
 namespace PBT.DowsingMachine.Projects;
 
-public class ParallelProject : DataProject
+public abstract class ParallelProject : DataProject
 {
+    [Option]
+    [Editor(typeof(FolderNameEditor), typeof(UITypeEditor))]
+    public string SourceFolder { get; set; }
+
     public string[] Variations { get; set; }
     public string Variation { get; set; }
-
-    public ParallelProject(string name, string baseFolder, string variation) : base(name, baseFolder)
-    {
-        Variations = new string[] { variation };
-        Variation = variation;
-    }
-
-    public ParallelProject(string name, string baseFolder, string[] variations) : base(name, baseFolder)
-    {
-        Variations = variations;
-        Variation = variations[0];
-    }
 
     public virtual bool Switch(string variation)
     {
@@ -33,17 +28,17 @@ public class ParallelProject : DataProject
         }
     }
 
-    public override string GetPath(string relativePath)
+    public string GetPath(string relativePath)
     {
         relativePath = relativePath.TrimStart('/').TrimStart('\\');
 
-        var root = string.Format(Root, Variation);
+        var root = string.Format(SourceFolder, Variation);
         var basePath = Path.Combine(root, relativePath);
 
         return basePath;
     }
 
-    public override FileEntry[] GetFiles(string relativePath, string searchPattern)
+    public FileEntry[] GetFiles(string relativePath, string searchPattern)
     {
         var path = GetPath(relativePath);
         var files = DirectoryUtil.GetFiles(path, searchPattern);

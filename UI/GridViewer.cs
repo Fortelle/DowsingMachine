@@ -1,5 +1,5 @@
-﻿using PBT.DowsingMachine.Data;
-using PBT.DowsingMachine.Projects;
+﻿using PBT.DowsingMachine.Projects;
+using PBT.DowsingMachine.Utilities;
 using System.Collections;
 using System.Data;
 using System.Reflection;
@@ -160,7 +160,7 @@ public partial class GridViewer : Form
                 {
                     return obj.ToString();
                 }
-                return Data.JsonUtil.Serialize(obj, new Data.JsonOptions() { WriteIndented = false, ConvertEnum = true });
+                return JsonUtil.Serialize(obj, new JsonOptions() { WriteIndented = false, ConvertEnum = true });
         }
     }
 

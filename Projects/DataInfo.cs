@@ -14,5 +14,4 @@ public class DataInfo : IDataReader
     object IDataReader.Open() => this;
     object IDataReader.Read(object cache) => cache;
 
-    public string Path => Project.GetPath(RelatedPath);
 }
