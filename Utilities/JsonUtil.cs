@@ -32,7 +32,6 @@ public static class JsonUtil
             IgnoreReadOnlyProperties = opt?.IgnoreReadOnlyProperties ?? defOpt.IgnoreReadOnlyProperties,
             IncludeFields = opt?.IncludeFields ?? defOpt.IncludeFields,
             Encoder = opt?.Encoder ?? defOpt.Encoder,
-
         };
         if (opt?.NamePolicy == JsonNamePolicy.Lower)
         {

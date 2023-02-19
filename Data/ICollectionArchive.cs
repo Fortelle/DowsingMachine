@@ -1,29 +1,34 @@
-﻿using PBT.DowsingMachine.Data;
-
-namespace PBT.DowsingMachine.Projects;
+﻿namespace PBT.DowsingMachine.Data;
 
 public interface ICollectionArchive<T> : IArchive
 {
+    public int Count { get; }
     public T this[int index] { get; }
-    public T this[string name] { get; }
-    public IEnumerable<Entry<T>> Entries { get; }
+    public IEnumerable<Entry<T>> AsEnumerable();
+    public IEnumerable<T> Values => AsEnumerable().Select(x => x.Data);
+}
 
-    public T[] GetData()
-    {
-        return Entries.Select(x => x.Data).ToArray();
-    }
+public interface ICollectionArchive<TKey, TValue> : IArchive
+{
+    public int Count { get; }
+    public TValue this[int index] { get; }
+    public TValue this[TKey key] { get; }
 
+    public IEnumerable<Entry<TValue>> AsEnumerable();
+    public TKey[] Keys { get; }
+    public virtual IEnumerable<TValue> Values => AsEnumerable().Select(x => x.Data);
+    
     public void Extract(string folder)
     {
         var dsc = Path.DirectorySeparatorChar;
         Directory.CreateDirectory(folder);
 
-        foreach (var entry in Entries)
+        foreach (var entry in AsEnumerable())
         {
             var path = entry.Name ?? $"{entry.Index}";
-            if(entry.Parents?.Length > 0)
+            if (entry.Directories?.Length > 0)
             {
-                path = string.Join(dsc, entry.Parents) + dsc + path;
+                path = string.Join(dsc, entry.Directories) + dsc + path;
             }
             path = path.TrimStart(dsc);
             var hasSubfolder = path.Contains(dsc);

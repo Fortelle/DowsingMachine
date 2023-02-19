@@ -85,8 +85,8 @@ public partial class TextViewer : Form
 
     public static void Show(object data)
     {
-        using var frm = new TextViewer(data);
-        frm.ShowDialog();
+        var frm = new TextViewer(data);
+        frm.Show();
     }
 
 }

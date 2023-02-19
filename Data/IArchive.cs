@@ -1,8 +1,7 @@
-﻿namespace PBT.DowsingMachine.Projects;
+﻿namespace PBT.DowsingMachine.Data;
 
 public interface IArchive
 {
     public void Open(string path);
     public void Open(byte[] data);
-    public void Open(Stream stream);
 }

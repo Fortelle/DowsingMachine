@@ -93,6 +93,7 @@ partial class AddProjectForm
             this.propertyGrid1.Size = new System.Drawing.Size(773, 304);
             this.propertyGrid1.TabIndex = 6;
             this.propertyGrid1.ToolbarVisible = false;
+            this.propertyGrid1.PropertyValueChanged += new System.Windows.Forms.PropertyValueChangedEventHandler(this.propertyGrid1_PropertyValueChanged);
             // 
             // lblError
             // 

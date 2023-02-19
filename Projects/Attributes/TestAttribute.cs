@@ -9,7 +9,7 @@ public class TestAttribute : Attribute
     {
     }
     
-    public TestAttribute(object[] args)
+    public TestAttribute(params object[] args)
     {
         Arguments = args;
     }

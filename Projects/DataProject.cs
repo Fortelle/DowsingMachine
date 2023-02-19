@@ -1,14 +1,17 @@
 ﻿using PBT.DowsingMachine.Data;
-using PBT.DowsingMachine.Structures;
 using PBT.DowsingMachine.Utilities;
 using System.ComponentModel;
+using System.Diagnostics;
 using System.Drawing.Design;
 using System.Reflection;
+using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
+using System.Text;
 using System.Windows.Forms.Design;
 
 namespace PBT.DowsingMachine.Projects;
 
-public class DataProject
+public abstract class DataProject : IDataProject, IDisposable
 {
     [Option]
     public string Name { get; set; }
@@ -21,257 +24,448 @@ public class DataProject
     [ReadOnly(true)]
     public string Id { get; set; }
 
-    public List<DataReference> References { get; } = new();
-    public Dictionary<string, object> Caches { get; } = new();
-    public bool UseCache { get; set; }
+    public virtual string Description { get; }
 
-    public event Action<object> OnDataGet;
+    public ResourceManager Resources { get; } = new();
+    protected ProjectCache Caches { get; } = new();
+    protected bool IsWorking { get; set; }
+    private bool IsConfigured { get; set; }
 
-    public DataProject()
+    public List<MethodInfo> ActionMethods { get; set; }
+    public List<MethodInfo> TestMethods { get; set; }
+    public List<MethodInfo> DataMethods { get; set; }
+
+    public object GetData(string resName, GetDataOptions options = null)
     {
-
-    }
-
-    public T As<T>() where T : class
-    {
-        return (T)(object)this;
-    }
-
-    public DataReference AddReference(DataReference reference)
-    {
-        if(reference.Reader != null)
+        var res = Resources.Get(resName);
+        if (res == null)
         {
-            reference.Reader.Name = Name;
-            reference.Reader.Project = this;
-        }
-        References.Add(reference);
-        return reference;
-    }
-
-    protected DataReference AddReference(string name, IDataReader reader)
-    {
-        var reference = new DataReference(name, reader);
-        return AddReference(reference);
-    }
-
-    protected DataReference AddReference<T>(string name, Func<T> parser)
-    {
-        var reference = new DataReference(name, null, parser);
-        return AddReference(reference);
-    }
-
-    protected DataReference AddReference<T0, T1, T2>(string name, DataReader<T0, T1> reader,
-        Func<T1, T2> parser1)
-    {
-        var reference = new DataReference(name, reader, parser1);
-        return AddReference(reference);
-    }
-
-    protected DataReference AddReference<T0, T1, T2, T3>(string name, DataReader<T0, T1> reader,
-        Func<T1, T2> parser1,
-        Func<T2, T3> parser2)
-    {
-        var reference = new DataReference(name, reader, parser1, parser2);
-        return AddReference(reference);
-    }
-
-    protected DataReference AddReference<T0, T1, T2, T3, T4>(string name, DataReader<T0, T1> reader,
-        Func<T1, T2> parser1,
-        Func<T2, T3> parser2,
-        Func<T3, T4> parser3)
-    {
-        var reference = new DataReference(name, reader, parser1, parser2, parser3);
-        return AddReference(reference);
-    }
-
-    public DataReference GetReference(string name)
-    {
-        name = DataReference.ModifyName(name);
-        return References.First(x => x.Name == name);
-    }
-
-    protected object GetData(DataReference reference, CacheMode cache, int step)
-    {
-        object? data;
-
-        if(cache == CacheMode.CacheFinal && Caches.ContainsKey(reference.Name))
-        {
-            return Caches[reference.Name];
+            throw new KeyNotFoundException();
         }
 
-        var cacheSource = cache switch
+        if(options == null)
         {
-            CacheMode.None => UseCache,
-            CacheMode.CacheSource => true,
-            _ => false,
-        };
+            options = new();
+            if (res.PreviewArguments?.Length > 0)
+            {
+                options.ReferenceArguments = res.PreviewArguments;
+            }
+        }
 
-        if (!cacheSource)
+        if (string.IsNullOrEmpty(options.CacheKey))
         {
-            reference.TryOpen(out data);
+            options.CacheKey = $"resource_cache:{res.Key}";
+        }
+
+        return GetData(res, options);
+    }
+
+    public T GetData<T>(string resName, GetDataOptions options = null)
+    {
+        return (T)GetData(resName, options);
+    }
+
+    public T GetData<T>(Func<T> func)
+    {
+        var key = "method_cache:" + func.Method.Name;
+        return GetOrCreateCache(key, func);
+    }
+
+    protected T GetOrCreateCache<T>(string key, Func<T> func)
+    {
+        if (Caches.TryGetValue(key, out var value))
+        {
+            return (T)value;
         }
         else
         {
-            if (!Caches.ContainsKey(reference.Name))
+            var sw = new Stopwatch();
+            sw.Start();
+            var data = func();
+            sw.Stop();
+            if(key != "")
             {
-                reference.TryOpen(out data);
-                Caches.Add(reference.Name, data);
+                Caches.Add(key, data);
             }
-            else
+
+            Debug.WriteLine($"Cached object: {key} ({sw.ElapsedMilliseconds}ms).");
+            return data;
+        }
+    }
+
+    protected T GetOrCreateCache<T>(Func<T> func, [CallerMemberName] string methodName = "")
+    {
+        var key = "method_cache:" + methodName;
+        return GetOrCreateCache(key, func);
+    }
+
+    public object ReadReference(string resName, GetDataOptions args)
+    {
+        var res = Resources.Get(resName);
+        return ReadReference(res.Reference, args);
+    }
+
+    protected virtual object ReadReference(IDataReference reference, GetDataOptions options)
+    {
+        switch (reference)
+        {
+            case null:
+                return null;
+            case ResRef rr:
+                {
+                    var res = GetData(rr.ResKey);
+                    return res;
+                }
+        }
+
+        throw new NotSupportedException("Not supported reference type.");
+    }
+
+    private object GetData(DataResource res, GetDataOptions options)
+    {
+        var cachekey = options.CacheKey;
+        if (options.UseCache)
+        {
+            if( Caches.TryGetValue(cachekey, out var cache))
             {
-                data = Caches[reference.Name];
+                return cache;
             }
         }
 
-        if (reference.Reader != null)
+        var data = ReadReference(res.Reference, options);
+        if(data != null && options.UseCache)
         {
-            data = reference.Reader.Read(data);
-        }
-
-        if (step == -1) step = reference.Parsers.Length;
-        if (step > 0)
-        {
-            foreach (var del in reference.Parsers)
+            cachekey = options.CacheKey;
+            if (Caches.TryGetValue(cachekey, out var cache))
             {
-                var newData = data is null ? del.DynamicInvoke() : del.DynamicInvoke(data);
-                if(data is IDisposable dis) { dis.Dispose(); }
-                data = newData;
+                return cache;
             }
         }
-
-        if (cache == CacheMode.CacheFinal)
+        if (options.Step == 0)
         {
-            Caches.Add(reference.Name, data);
+            return data;
         }
 
-        OnDataGet?.Invoke(data);
+        if(res.Reader == null)
+        {
+            return data;
+        }
+
+        var getdata = () =>
+        {
+            data = res.Reader.Base.DoRead(data);
+            if (options.Step == 1)
+            {
+                return data;
+            }
+
+            var parsers = res.Reader.Base.Parsers;
+            if (parsers?.Count > 0)
+            {
+                for (var i = 0; i < parsers.Count; i++)
+                {
+                    var newData = i == 0 && parsers[0].Method.GetParameters().Length == 0
+                        ? parsers[i].DynamicInvoke()
+                        : parsers[i].DynamicInvoke(data)
+                        ;
+                    if (data is IDisposable dis && !Caches.ContainsValue(data))
+                    {
+                        dis.Dispose();
+                    }
+                    data = newData;
+                    if (options.Step == i + 2)
+                    {
+                        return data;
+                    }
+                }
+            }
+
+            return data;
+        };
+
+
+        //var getdata = () =>
+        //{
+        //    if (res.Reader != null)
+        //    {
+        //        data = res.Reader.Read(data);
+        //    }
+        //    if (options.Step == 0)
+        //    {
+        //        return data;
+        //    }
+
+        //    if (res.Parsers?.Count > 0)
+        //    {
+        //        for (var i = 0; i < res.Parsers.Count; i++)
+        //        {
+        //            var newData = i == 0 && res.Parsers[0].Method.GetParameters().Length == 0
+        //                ? res.Parsers[i].DynamicInvoke()
+        //                : res.Parsers[i].DynamicInvoke(data)
+        //                ;
+        //            if (data is IDisposable dis && !Caches.ContainsValue(data))
+        //            {
+        //                dis.Dispose();
+        //            }
+        //            data = newData;
+        //            if (options.Step == i + 1)
+        //            {
+        //                return data;
+        //            }
+        //        }
+        //    }
+
+        //    return data;
+        //};
+
+        if (options.UseCache)
+        {
+            GetOrCreateCache(cachekey, getdata);
+        }
+        else
+        {
+            getdata();
+        }
 
         return data;
     }
 
-    public object GetData(string refName, CacheMode cache = CacheMode.None, int step = -1)
+    public virtual void Configure()
     {
-        var reference = GetReference(refName);
-        return GetData(reference, cache, step);
     }
 
-    public T GetData<T>(string refName, int step)
+    public virtual bool CheckValidity(bool isNew, out string? error)
     {
-        return (T)GetData(refName, CacheMode.None, step);
-    }
-
-    public T GetData<T>(string refName)
-    {
-        return (T)GetData(refName, CacheMode.None, - 1);
-    }
-
-    public T GetData<T>(string refName, CacheMode cache)
-    {
-        return (T)GetData(refName, cache, - 1);
+        error = "";
+        return true;
     }
 
     public virtual void BeginWork()
     {
-        UseCache = true;
+        IsWorking = true;
     }
 
     public virtual void EndWork()
     {
-        foreach(var (refName, cache) in Caches)
+        Caches.Release();
+        IsWorking = false;
+    }
+
+    public void Active()
+    {
+        if (!IsConfigured)
         {
-            //var reference = GetReference(refName);
-            if(cache is IDisposable dis) { dis.Dispose(); }
-            Caches.Remove(refName);
+            Configure();
+            IsConfigured = true;
         }
-        UseCache = false;
+
+        LoadMethods();
     }
 
-    public IEnumerable<MethodInfo> GetMethods<T>() where T : Attribute
+    public virtual void Dispose()
     {
-        var type = typeof(T);
-        return GetType()
-            .GetMethods()
-            .Where(x => x.GetCustomAttributes(type, false).Any())
-            ;
+        Caches?.Release();
     }
 
-    public object Test(string name)
-    {
-        var method = GetType().GetMethod(name);
-        var ta = method.GetCustomAttribute<TestAttribute>();
-        return method.Invoke(this, ta.Arguments);
-    }
 
-    public IEnumerable<string> Extract(string name)
+    private void LoadMethods()
     {
-        var method = GetType().GetMethod(name);
-        var result = method.Invoke(this, null);
-        return result switch
+        ActionMethods = new();
+        DataMethods = new();
+        TestMethods = new();
+
+        var methods = GetType().GetMethods(BindingFlags.Instance | BindingFlags.Public);
+        foreach (var method in methods)
         {
-            string path => new[] { path },
-            IEnumerable<string> paths => paths,
-            null => new[] { $"{name} is done." },
-            _ => throw new NotImplementedException(),
-        };
+            var attributes = method.GetCustomAttributes().ToArray();
+            if (!AuthorizeMethod(attributes)) continue;
+            foreach (var attr in attributes)
+            {
+                switch (attr)
+                {
+                    case ActionAttribute:
+                        ActionMethods.Add(method);
+                        break;
+                    case TestAttribute:
+                        TestMethods.Add(method);
+                        break;
+                    case DataAttribute:
+                        DataMethods.Add(method);
+                        break;
+                }
+            }
+        }
     }
 
-    //public virtual string GetPath(string relatedPath)
-    //{
-    //    relatedPath = relatedPath.TrimStart('/').TrimStart('\\');
-    //    var path = Path.Combine(Root, relatedPath);
-    //    return path;
-    //}
-
-    //public virtual FileEntry[] GetFiles(string relativePath)
-    //{
-    //    relativePath = relativePath.TrimStart('/').TrimStart('\\');
-    //    var path = Path.Combine(Root, relativePath);
-    //    var files = DirectoryUtil.GetFiles(path, "*");
-    //    return files;
-    //}
-
-    //public virtual FileEntry[] GetFiles(string relativePath, string searchPattern)
-    //{
-    //    relativePath = relativePath.TrimStart('/').TrimStart('\\');
-    //    var path = Path.Combine(Root, relativePath);
-    //    var files = DirectoryUtil.GetFiles(path, searchPattern);
-    //    return files;
-    //}
-
-    public string GetOutputFile(string relativePath)
+    protected virtual bool AuthorizeMethod(Attribute[] attributes)
     {
-        relativePath = relativePath.TrimStart('/').TrimStart('\\');
-        var path = Path.Combine(OutputFolder, relativePath);
-        Directory.CreateDirectory(Path.GetDirectoryName(path));
-        return path;
+        if(this is IMethodAuthorizable auth)
+        {
+            return auth.AuthorizeMethod(attributes);
+        }
+
+        return true;
     }
 
-    public static T[] MarshalArray<T>(IEnumerable<byte[]> source) where T : new()
+    public void Export(MethodInfo method)
+    {
+        if (!CheckOutputFolder()) return;
+
+        var attr = method.GetCustomAttribute<DataAttribute>();
+        if (attr == null || string.IsNullOrEmpty(attr.OutputPath)) return;
+
+        var data = method.Invoke(this, Array.Empty<object>());
+        if (data is null) return;
+
+        var path = Path.Combine(OutputFolder, attr.OutputPath);
+        Export(data, path);
+    }
+
+    protected virtual void Export(object data, string path)
+    {
+        switch (data)
+        {
+            case string str:
+                Directory.CreateDirectory(Path.GetDirectoryName(path));
+                File.WriteAllText(path, str);
+                break;
+            case string[] str:
+                Directory.CreateDirectory(Path.GetDirectoryName(path));
+                File.WriteAllLines(path, str);
+                break;
+            case StringBuilder sb:
+                Directory.CreateDirectory(Path.GetDirectoryName(path));
+                File.WriteAllText(path, sb.ToString());
+                break;
+            case IEnumerable<ExportItem> entries:
+                foreach(var entry in entries)
+                {
+                    Export(entry.Data, Path.Combine(path, entry.Relpath));
+                }
+                break;
+            case IExportable exportable:
+                exportable.Export(path);
+                break;
+            default:
+                JsonUtil.Serialize(path, data, new()
+                {
+                    IgnoreReadOnlyProperties = false,
+                });
+                break;
+        }
+    }
+
+
+    public object Test(string methodName)
+    {
+        var method = GetType().GetMethod(methodName);
+        var attr = method.GetCustomAttribute<TestAttribute>();
+        var args = attr.Arguments;
+        BeginWork();
+        var data = method.Invoke(this, args);
+        EndWork();
+        return data;
+    }
+
+    public bool CheckOutputFolder()
+    {
+        if (string.IsNullOrEmpty(OutputFolder))
+        {
+            MessageBox.Show($"{nameof(OutputFolder)} is not set.");
+            return false;
+        }
+        if(!Directory.Exists(OutputFolder))
+        {
+            MessageBox.Show($"Output folder {nameof(OutputFolder)} not exists.");
+            return false;
+        }
+        return true;
+    }
+
+    #region "Parsers"
+
+    //protected static TElement[] ReadArchive<TFormat, TElement>(string filepath) where TFormat : ICollectionArchive<TElement>, new()
+    //{
+    //    var file = new TFormat();
+    //    file.Open(filepath);
+    //    var data = file.GetData();
+    //    if (file is IDisposable id) id.Dispose();
+    //    return data;
+    //}
+
+    //protected static TElement[] ReadArchive<TFormat, TElement>(byte[] source) where TFormat : ICollectionArchive<TElement>, new()
+    //{
+    //    var file = new TFormat();
+    //    file.Open(source);
+    //    var data = file.GetData();
+    //    if (file is IDisposable id) id.Dispose();
+    //    return data;
+    //}
+
+    //protected static TElement ReadObjectArchive<TFormat, TElement>(string filepath) where TFormat : IObjectArchive<TElement>, new()
+    //{
+    //    var file = new TFormat();
+    //    file.Open(filepath);
+    //    if (file is IDisposable id) id.Dispose();
+    //    return file.Data;
+    //}
+
+    //protected static TElement ReadObjectArchive<TFormat, TElement>(byte[] source) where TFormat : IObjectArchive<TElement>, new()
+    //{
+    //    var file = new TFormat();
+    //    file.Open(source);
+    //    if (file is IDisposable id) id.Dispose();
+    //    return file.Data;
+    //}
+
+    //protected static TFormat ReadArchive<TFormat>(string filepath) where TFormat : IArchive, new()
+    //{
+    //    var file = new TFormat();
+    //    file.Open(filepath);
+    //    return file;
+    //}
+
+    //protected static TFormat ReadArchive<TFormat>(byte[] source) where TFormat : IArchive, new()
+    //{
+    //    var file = new TFormat();
+    //    file.Open(source);
+    //    return file;
+    //}
+
+    protected static T[] MarshalTo<T>(byte[] source) where T : struct
+    {
+        var size = Marshal.SizeOf<T>();
+        var ret = new T[source.Length / size];
+        Buffer.BlockCopy(source, 0, ret, 0, source.Length);
+        return ret;
+    }
+
+    protected static T[] MarshalArray<T>(IEnumerable<byte[]> source) where T : new()
     {
         return source.Select(MarshalUtil.Deserialize<T>).ToArray();
     }
 
-    public static T[] MarshalArray<T>(IEnumerable<Entry<byte[]>> source) where T : new()
+    protected static T[] MarshalArray<T>(IEnumerable<Entry<byte[]>> source) where T : new()
     {
         return source.Select(x => MarshalUtil.Deserialize<T>(x.Data)).ToArray();
     }
 
-    public static T[] ParseArray<T>(byte[][] source, Func<byte[], T> predicate)
+    protected static T[] ParseArray<T>(byte[][] source, Func<byte[], T> predicate)
     {
         return source.Select(predicate).ToArray();
     }
 
-    public static T[] ParseArray<T>(byte[][] source, Func<BinaryReader, T> predicate)
+    protected static T[] ParseArray<T>(byte[][] source, Func<BinaryReader, T> predicate)
     {
         return ParseEnumerable(source, predicate);
     }
 
-    public static T[] ParseEnumerable<T>(IEnumerable<byte[]> source, Func<byte[], T> predicate)
+    protected static T[] ParseEnumerable<T>(IEnumerable<byte[]> source, Func<byte[], T> predicate)
     {
         return source.Select(predicate).ToArray();
     }
 
-    public static T[] ParseEnumerable<T>(IEnumerable<byte[]> source, Func<BinaryReader, T> predicate)
+    protected static T[] ParseEnumerable<T>(IEnumerable<byte[]> source, Func<BinaryReader, T> predicate)
     {
         return source.Select(x =>
         {
@@ -282,17 +476,32 @@ public class DataProject
         }).ToArray();
     }
 
-    public virtual bool CheckValidity(out string? error)
+    //protected static Func<byte[][], T[]> ParseEnumerable<T>(Func<byte[], T> predicate)
+    //{
+    //    return (source) => source.Select(predicate).ToArray();
+    //}
+
+    protected static Func<IEnumerable<byte[]>, T[]> ParseEnumerable<T>(Func<byte[], T> predicate)
     {
-        error = "";
-        return true;
+        return (source) => source.Select(predicate).ToArray();
     }
 
-    public virtual void Configure()
+    protected static Func<IEnumerable<byte[]>, T[]> ParseEnumerable<T>(Func<BinaryReader, T> predicate)
     {
+        return (source) => source.Select(row => {
+            using var ms = new MemoryStream(row);
+            using var br = new BinaryReader(ms);
+            var data = predicate.Invoke(br);
+            return data;
+        }).ToArray();
     }
 
-    [Action("Open output folder")]
+
+    #endregion
+
+    #region "Actions"
+
+    [Action]
     public void OpenOutputFolder()
     {
         if (Directory.Exists(OutputFolder))
@@ -301,4 +510,22 @@ public class DataProject
         }
     }
 
+    [Action]
+    public void ExportAllData()
+    {
+        if (!CheckOutputFolder()) return;
+
+        BeginWork();
+
+        foreach (var method in DataMethods)
+        {
+            Export(method);
+        }
+
+        EndWork();
+
+        OpenOutputFolder();
+    }
+
+    #endregion
 }

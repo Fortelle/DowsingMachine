@@ -75,7 +75,6 @@ public class MarshalUtil
     {
         var x = 0;
         return (T)Deserialize(typeof(T), data, ref x, false, 32);
-
     }
 
     public static object Deserialize(Type type, byte[] data)
@@ -225,6 +224,11 @@ public class MarshalUtil
             {
                 var value = Deserialize(fieldType, data, ref ptr, bigEndian, pack);
                 properties[i].SetValue(obj, value);
+            }
+
+            if(ptr >= data.Length) //todo: config
+            {
+                break;
             }
         }
 

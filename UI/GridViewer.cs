@@ -1,4 +1,5 @@
-﻿using PBT.DowsingMachine.Projects;
+﻿using PBT.DowsingMachine.Data;
+using PBT.DowsingMachine.Projects;
 using PBT.DowsingMachine.Utilities;
 using System.Collections;
 using System.Data;
@@ -44,63 +45,70 @@ public partial class GridViewer : Form
         //dataGridView1.AutoSizeColumnsMode = ascm;
         //dataGridView1.ColumnHeadersHeightSizeMode = chhs;
         //dataGridView1.ResumeLayout();
-
-        var type = data.GetType();
-        switch (type.GetElementType())
+        switch (data)
         {
-            case null:
-                var objarray = data.Cast<object>();
-                var first = objarray.First();
-                if(first is ITuple)
+            case IDictionary dict:
+                ShowDictionary(dict);
+                break;
+            case byte[] x:
+                ShowByte(x);
+                break;
+            case IEnumerable<byte[]> x:
+                ShowBytes(x);
+                break;
+            case IEnumerable<JsonNode> x:
+                ShowNodes(x);
+                break;
+            case IEnumerable:
+                var type = data.GetType();
+                switch (type.GetElementType())
                 {
-                    ShowProperties(data, first.GetType());
-                }
-                else
-                {
-                    ShowList(data);
-                }
-                break;
-            case var t when t.IsGenericType && t.GetGenericTypeDefinition() == typeof(Dictionary<,>):
-                ShowDictionary(data);
-                break;
-            case var t when t == typeof(JsonNode):
-                ShowNodes((IEnumerable<JsonNode>)data);
-                break;
-            case var t when t == typeof(byte[]):
-                ShowBytes((IEnumerable<byte[]>)data);
-                break;
-            case var t when t == typeof(byte):
-                ShowByte((byte[])data);
-                break;
-            default:
-                var elementType = data.GetType()
-                    .GetInterfaces()
-                    .First(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IEnumerable<>))
-                    .GetGenericArguments()
-                    .FirstOrDefault();
+                    case null:
+                        var objarray = data.Cast<object>();
+                        var first = objarray.First();
+                        if (first is ITuple)
+                        {
+                            ShowProperties(data, first.GetType());
+                        }
+                        else
+                        {
+                            ShowList(data);
+                        }
+                        break;
+                    case var t when t.IsGenericType && t.GetGenericTypeDefinition() == typeof(Dictionary<,>):
+                        ShowDictionaryCollection(data);
+                        break;
+                    default:
+                        var elementType = data.GetType()
+                            .GetInterfaces()
+                            .First(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IEnumerable<>))
+                            .GetGenericArguments()
+                            .FirstOrDefault();
 
-                if (elementType == null || elementType.IsEnum || elementType.IsPrimitive || elementType == typeof(string))
-                {
-                    ShowList(data);
+                        if (elementType == null || elementType.IsEnum || elementType.IsPrimitive || elementType == typeof(string))
+                        {
+                            ShowList(data);
+                        }
+                        else if (elementType.IsArray)
+                        {
+                            ShowMatrix(data);
+                        }
+                        else
+                        {
+                            ShowProperties(data, elementType);
+                        }
+                        break;
                 }
-                else if (elementType.IsArray)
-                {
-                    ShowMatrix(data);
-                }
-                else
-                {
-                    ShowProperties(data, elementType);
-                }
+
                 break;
         }
-
         dataGridView1.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.AllCells;
         dataGridView1.RowHeadersWidthSizeMode = DataGridViewRowHeadersWidthSizeMode.AutoSizeToDisplayedHeaders;
 
         dataGridView1.ResumeLayout();
     }
 
-    private void ShowDictionary(IEnumerable list)
+    private void ShowDictionaryCollection(IEnumerable list)
     {
         var data = new List<Dictionary<string, string>>();
         foreach(IDictionary entry in list)
@@ -108,8 +116,8 @@ public partial class GridViewer : Form
             var dict = new Dictionary<string, string>();
             foreach (DictionaryEntry item in entry)
             {
-                var key = ToLine(item.Key);
-                var value = ToLine(item.Value);
+                var key = StringUtil.ToLine(item.Key);
+                var value = StringUtil.ToLine(item.Value);
                 dict.Add(key, value);
             };
             data.Add(dict);
@@ -132,41 +140,6 @@ public partial class GridViewer : Form
             }
             dataGridView1.Rows[row].HeaderCell.Value = $"{i}";
         }
-    }
-
-    private static string ToLine(object obj)
-    {
-        switch (obj)
-        {
-            case null:
-                return "(null)";
-            case byte[] b:
-                return "0x" + BitConverter.ToString(b).Replace("-", "");
-            case long l:
-                return $"0x{l:X16}";
-            case ulong l:
-                return $"0x{l:X16}";
-            case string s:
-                return s;
-            case IDictionary d:
-                return "{ " + string.Join(", ", CastDE(d).Select(x => ToLine(x.Key) + ": " + ToLine(x.Value))) + " }";
-            case IEnumerable i:
-                return "[ " + string.Join(", ", i.Cast<object>().Select(ToLine)) + " ]";
-            case var x when x.GetType().IsPrimitive:
-                return obj.ToString();
-            default:
-                var type = obj.GetType();
-                if (type.GetMethod("ToString", BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly, Array.Empty<Type>()) is not null)
-                {
-                    return obj.ToString();
-                }
-                return JsonUtil.Serialize(obj, new JsonOptions() { WriteIndented = false, ConvertEnum = true });
-        }
-    }
-
-    private static IEnumerable<DictionaryEntry> CastDE(IDictionary dict)
-    {
-        foreach (DictionaryEntry item in dict) yield return item;
     }
 
     private void ShowProperties(IEnumerable list, Type type)
@@ -206,7 +179,7 @@ public partial class GridViewer : Form
             foreach (var prop in properties)
             {
                 var value = prop.GetValue(item);
-                var text = ToLine(value);
+                var text = StringUtil.ToLine(value);
                 if(GetString != null)
                 {
                     var sr = prop.GetCustomAttribute<StringReferenceAttribute>();
@@ -222,7 +195,7 @@ public partial class GridViewer : Form
             foreach (var field in fields)
             {
                 var value = field.GetValue(item);
-                var text = ToLine(value);
+                var text = StringUtil.ToLine(value);
                 if (GetString != null)
                 {
                     var sr = field.GetCustomAttribute<StringReferenceAttribute>();
@@ -230,6 +203,14 @@ public partial class GridViewer : Form
                     {
                         var args = sr.Arguments.Append(value).ToArray();
                         text += " (" + GetString(args) + ")";
+                    }
+                }
+                else
+                {
+                    var sr = field.GetCustomAttribute<AsEnumAttribute>();
+                    if (sr != null && Enum.TryParse(sr.EnumType, value.ToString(), out var enumvalue))
+                    {
+                        text += $" ({enumvalue})";
                     }
                 }
 
@@ -246,10 +227,29 @@ public partial class GridViewer : Form
         var i = 0;
         foreach (var item in list.Cast<object>())
         {
-            var text = ToLine(item);
+            var text = StringUtil.ToLine(item);
             var row = dataGridView1.Rows.Add();
             dataGridView1.Rows[row].HeaderCell.Value = $"{i}";
             dataGridView1.Rows[row].Cells[0].Value = text;
+            i++;
+        }
+    }
+
+    private void ShowDictionary(IDictionary dict)
+    {
+        var col = dataGridView1.Columns.Add("Key", "Key");
+        dataGridView1.Columns[col].SortMode = DataGridViewColumnSortMode.NotSortable;
+        col = dataGridView1.Columns.Add("Value", "Value");
+        dataGridView1.Columns[col].SortMode = DataGridViewColumnSortMode.NotSortable;
+
+        var i = 0;
+        foreach (DictionaryEntry kv in dict)
+        {
+            var text = StringUtil.ToLine(kv.Value);
+            var row = dataGridView1.Rows.Add();
+            dataGridView1.Rows[row].HeaderCell.Value = $"{i}";
+            dataGridView1.Rows[row].Cells[0].Value = kv.Key.ToString();
+            dataGridView1.Rows[row].Cells[1].Value = text;
             i++;
         }
     }
@@ -277,11 +277,11 @@ public partial class GridViewer : Form
         foreach (IEnumerable obj in data)
         {
             var row = dataGridView1.Rows.Add();
-            dataGridView1.Rows[row].HeaderCell.Value = $"{j}";
+            dataGridView1.Rows[row].HeaderCell.Value = $"{j++}";
             var k = 0;
             foreach (var x in obj)
             {
-                dataGridView1.Rows[row].Cells[k].Value = ToLine(x);
+                dataGridView1.Rows[row].Cells[k].Value = StringUtil.ToLine(x);
                 k++;
             }
         }
@@ -348,7 +348,7 @@ public partial class GridViewer : Form
             dataGridView1.Rows[row].HeaderCell.Value = $"{i}";
             foreach (var kv in node.AsObject())
             {
-                dataGridView1.Rows[row].Cells[kv.Key].Value = ToLine(kv.Value);
+                dataGridView1.Rows[row].Cells[kv.Key].Value = StringUtil.ToLine(kv.Value);
             }
             i++;
         }

@@ -5,7 +5,7 @@ public class Entry<T>
     public int? Index { get; set; }
     public string? Name { get; set; }
     public T Data { get; set; }
-    public string[] Parents { get; set; }
+    public string[] Directories { get; set; }
 
     public Entry(T data)
     {
@@ -29,6 +29,16 @@ public class Entry<T>
         Data = data;
         Name = name;
         Index = index;
+    }
+
+    public string GetDirectoryName()
+    {
+        return string.Join(Path.DirectorySeparatorChar, Directories);
+    }
+
+    public string GetFullpath()
+    {
+        return string.Join(Path.DirectorySeparatorChar, Directories.Append(Name));
     }
 
     public Entry<TNew> New<TNew>(TNew data)
